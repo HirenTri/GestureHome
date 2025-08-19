@@ -1,0 +1,182 @@
+import cv2
+import time
+#import controller as cnt
+from cvzone.HandTrackingModule import HandDetector
+import winsound
+import pyttsx3
+import pygame
+from music_library import music_files
+
+#/////////////////////////////////////////////////////////////////
+engine = pyttsx3.init()
+
+engine.setProperty('rate', 100)  
+engine.setProperty('volume', 1)
+
+#/////////////////////////////////////////////////////////////////
+frequency = 1100 
+duration = 200
+
+#/////////////////////////////////////////////////////////////////
+detector = HandDetector(detectionCon=0.1, maxHands=2)
+
+video = cv2.VideoCapture(0)
+
+switch = "OFF"
+
+#/////////////////////////////////////////////////////////////////
+volume = 0.5
+
+class MusicPlayer:
+    def __init__(self, music_files):
+        pygame.mixer.init()
+        self.music_files = music_files
+        self.current_index = 0
+        self.is_playing = False
+        self.volume = 0.5  # Default volume (50%)
+        pygame.mixer.music.set_volume(self.volume)
+
+    def play_song(self):
+        pygame.mixer.music.load(self.music_files[self.current_index])
+        pygame.mixer.music.play()
+        self.is_playing = True
+        print(f"Playing: {self.music_files[self.current_index]}")
+
+    def pause_song(self):
+        if self.is_playing:
+            pygame.mixer.music.pause()
+            self.is_playing = False
+            print("Paused")
+
+    def resume_song(self):
+        if not self.is_playing:
+            pygame.mixer.music.unpause()
+            self.is_playing = True
+            print("Resumed")
+
+    def next_song(self):
+        self.current_index = (self.current_index + 1) % len(self.music_files)
+        self.play_song()
+
+    def previous_song(self):
+        self.current_index = (self.current_index - 1) % len(self.music_files)
+        self.play_song()
+
+    def volume_up(self):
+        self.volume = min(self.volume + 0.1, 1.0)  # Cap the volume at 1.0
+        pygame.mixer.music.set_volume(self.volume)
+        print(f"Volume increased to: {int(self.volume * 100)}%")
+
+    def volume_down(self):
+        self.volume = max(self.volume - 0.1, 0.0)  # Lower limit is 0.0
+        pygame.mixer.music.set_volume(self.volume)
+        print(f"Volume decreased to: {int(self.volume * 100)}%")
+
+#/////////////////////////////////////////////////////////////////
+# List of appliances with their statuses
+appliances = [
+    {"name": "Light", "status": "OFF", "power":1},
+    {"name": "Fan", "status": "OFF", "power":0},
+    {"name": "AC", "status": "OFF", "power":21},
+    {"name": "TV", "status": "OFF", "power":1},
+    {"name": "Geyser", "status": "OFF", "power":1},
+    {"name": "Speaker", "status": "OFF", "power":1}
+]
+
+#/////////////////////////////////////////////////////////////////
+def change_status(appliance_name, new_status):
+    for appliance in appliances:
+        if appliance['name'] == appliance_name:
+            appliance['status'] = new_status
+            break  
+
+def is_on(appliance_name):
+    for appliance in appliances:
+        if appliance['name'] == appliance_name:
+            return appliance['status'] == 'ON'  
+    return False
+    
+#///////////////////////////////////////////////////////////////
+
+
+while True:
+    powerDown = 50
+    
+    
+    while True:
+        #cnt.led(appliances)
+        
+        ret, frame = video.read()
+        frame = cv2.flip(frame, 1)  # Flip the frame horizontally
+        hands, img = detector.findHands(frame)
+        
+        if len(hands) == 2:
+            powerDown = 50
+            
+            # Assign the left and right hands based on handType
+            if hands[0]['type'] == 'Left':
+                leftHand = hands[0]
+                rightHand = hands[1]
+            else:
+                leftHand = hands[1]
+                rightHand = hands[0]
+
+            # Swap left and right labels for display purposes after flip
+            displayLeftHand = rightHand
+            displayRightHand = leftHand
+
+            fingerUpLeft = detector.fingersUp(displayLeftHand)
+            fingerUpRight = detector.fingersUp(displayRightHand)
+            print(f"{fingerUpLeft}, {fingerUpRight}")
+                            
+            #Sound Control
+            player = MusicPlayer(music_files)
+            if not is_on('Speaker') and fingerUpLeft == [0, 0, 0, 0, 0] and fingerUpRight == [0, 1, 1, 0, 0]:
+                player.play_song()
+                change_status('Speaker', 'ON')
+            elif fingerUpLeft == [1, 1, 1, 1, 1] and fingerUpRight == [0, 1, 1, 0, 0]:
+                player.pause_song()
+                time.sleep(1)
+            elif fingerUpLeft == [0, 1, 1, 1, 1] and fingerUpRight == [0, 1, 1, 0, 0]:
+                player.resume_song()
+                time.sleep(1)
+            elif fingerUpLeft == [0, 1, 1, 0, 0] and fingerUpRight == [0, 1, 1, 0, 0]:
+                player.next_song()
+                time.sleep(2)
+            elif fingerUpLeft == [0, 0, 1, 1, 0] and fingerUpRight == [0, 1, 1, 0, 0]:
+                player.previous_song()
+                time.sleep(2)
+            elif fingerUpLeft == [1, 0, 0, 0, 0] and fingerUpRight == [0, 1, 1, 0, 0]:
+                if(volume < 1):
+                    player.volume_up()
+            elif fingerUpLeft == [0, 1, 0, 0, 0] and fingerUpRight == [0, 1, 1, 0, 0]:
+                if(volume > 0):
+                    player.volume_down()
+            elif is_on('Speaker') and fingerUpLeft == [0, 1, 1, 0, 0] and fingerUpRight == [0, 0, 0, 0, 0]:
+                change_status('Speaker', 'OFF')
+                pygame.mixer.music.stop()
+            
+            # Display the status of each appliance
+            for i, appliance in enumerate(appliances):
+                text = f"{appliance['name']}"
+                cv2.putText(frame, text, (20, 400 + i * 15), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                color = (0, 255, 0) if appliance['status'] == 'ON' else (0, 0, 255)
+                cv2.circle(frame, (150, 400 + i * 15 - 10), 7, color, -1) 
+                Power = f"{appliance['power']}"
+                cv2.putText(frame, Power, (200, 400 + i * 15), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                
+                
+            #cnt.led(appliances)
+            
+        cv2.imshow("frame", frame)
+        k = cv2.waitKey(5)
+        if k == ord("k"):
+            break
+        
+    cv2.imshow("frame", frame)
+    k = cv2.waitKey(1)
+    if k == ord("k"):
+        break
+
+video.release()
+cv2.destroyAllWindows()
