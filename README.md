@@ -9,7 +9,6 @@ Currently, our system can:
 
 This project demonstrates how **Human-Computer Interaction (HCI)** can make daily life easier and more intuitive.
 
----
 
 ## ✨ Features  
 - 🔊 Control media (songs, channels) using hand gestures.  
@@ -30,5 +29,4 @@ This project demonstrates how **Human-Computer Interaction (HCI)** can make dail
 ## ⚙️ Setup Instructions  
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/HirenTri/GestureHome.git
-   cd GestureHome
+ 
