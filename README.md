@@ -21,7 +21,7 @@ This project demonstrates how **Human-Computer Interaction (HCI)** can make dail
 
 ## 🛠 Tech Stack  
 - **Programming Language:** Python 
-- **Computer Vision:** OpenCV 
+- **Computer Vision:** OpenCV library
 - **Hardware (if applicable):** Raspberry Pi and Arduino + sensors  
 - **Frontend:** Basic UI / Terminal output  
 
